@@ -153,3 +153,90 @@ export interface LoginLog {
   faceVerified?: boolean;
   failReason?: string;
 }
+
+export type TaskType = 'counter_service' | 'atm_refill' | 'vault_operation' | 'vip_service' | 'maintenance';
+export type TaskStatus = 'queued' | 'scheduled' | 'inProgress' | 'completed' | 'pending_approval' | 'cancelled';
+export type TaskPriority = 'low' | 'normal' | 'medium' | 'high';
+
+export interface Task {
+  id: string;
+  type: TaskType;
+  title: string;
+  customerName: string | null;
+  customerIdCard: string | null;
+  counterNumber: number | null;
+  tellerName: string | null;
+  businessType: string;
+  amount: number | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  notes?: string;
+}
+
+export type ApprovalType = 'atm_refill' | 'vault_access' | 'large_withdrawal' | 'overtime_work' | 'counter_activation' | 'purchase_order';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'auto_approved';
+
+export interface ApprovalDecision {
+  userId: string;
+  userName: string;
+  role: UserRole | 'operation' | 'system';
+  approvedAt?: string;
+  rejectedAt?: string;
+  comment?: string;
+  reason?: string;
+}
+
+export interface Approval {
+  id: string;
+  type: ApprovalType;
+  targetId: string;
+  targetName: string;
+  title: string;
+  requestedBy: string;
+  requestedById: string;
+  requestedAt: string;
+  requiredApprovalCount: number;
+  amount: number | null;
+  status: ApprovalStatus;
+  approvals: ApprovalDecision[];
+  rejections: ApprovalDecision[];
+  notes?: string;
+}
+
+export interface ProtocolStep {
+  step: number;
+  title: string;
+  description: string;
+  required: boolean;
+  estimatedMinutes: number;
+}
+
+export type ProtocolCategory = '柜台业务' | '自助设备' | '安全管理' | '客户服务';
+
+export interface Protocol {
+  id: string;
+  code: string;
+  name: string;
+  category: ProtocolCategory;
+  version: string;
+  updatedAt: string;
+  applicableRoles: UserRole[];
+  requiredApprovals: number;
+  steps: ProtocolStep[];
+  notes?: string;
+}
+
+export type AlertLevel = 'info' | 'warning' | 'danger' | 'success';
+
+export interface Alert {
+  id: string;
+  type: string;
+  level: AlertLevel;
+  title: string;
+  message: string;
+  timestamp: string;
+  location?: string;
+}

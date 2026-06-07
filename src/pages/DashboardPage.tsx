@@ -69,6 +69,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) navigate('/login');
+    else useBankStore.getState().loadAllFromApi();
   }, [user, navigate]);
 
   if (!user) return null;

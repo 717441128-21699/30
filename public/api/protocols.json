@@ -1,0 +1,97 @@
+[
+  {
+    "id": "proto_001",
+    "code": "SOP-BANK-001",
+    "name": "柜台开户标准流程",
+    "category": "柜台业务",
+    "version": "v2.3",
+    "updatedAt": "2026-04-15",
+    "applicableRoles": ["teller", "supervisor"],
+    "requiredApprovals": 0,
+    "steps": [
+      { "step": 1, "title": "客户身份核验", "description": "核对身份证原件与人脸一致性，通过公安部联网核查系统验证", "required": true, "estimatedMinutes": 2 },
+      { "step": 2, "title": "风险测评与告知", "description": "对客户进行反洗钱风险等级评定，告知账户使用须知及电子银行风险", "required": true, "estimatedMinutes": 3 },
+      { "step": 3, "title": "申请表填写与签字", "description": "指导客户填写《个人开户申请书》，核对信息无误后客户签字确认", "required": true, "estimatedMinutes": 3 },
+      { "step": 4, "title": "核心系统录入", "description": "在银行核心业务系统中录入客户信息，开立人民币结算账户", "required": true, "estimatedMinutes": 3 },
+      { "step": 5, "title": "凭证打印与交付", "description": "打印借记卡、业务受理单、手续费收据，双人复核后交付客户", "required": true, "estimatedMinutes": 2 },
+      { "step": 6, "title": "资料归档", "description": "开户申请书、身份证复印件、人脸识别截图按监管要求归档保存15年", "required": true, "estimatedMinutes": 2 }
+    ],
+    "notes": "严禁为身份不明客户开户；异地户籍客户需额外提供居住证或工作证明"
+  },
+  {
+    "id": "proto_002",
+    "code": "SOP-BANK-002",
+    "name": "ATM加钞双人操作规范",
+    "category": "自助设备",
+    "version": "v3.1",
+    "updatedAt": "2026-03-20",
+    "applicableRoles": ["supervisor", "operation"],
+    "requiredApprovals": 2,
+    "steps": [
+      { "step": 1, "title": "加钞申请发起", "description": "柜员/主管在系统发起加钞申请，注明ATM编号、当前余额、目标金额", "required": true, "estimatedMinutes": 2 },
+      { "step": 2, "title": "双人审批", "description": "需至少2名主管/运营经理在系统内电子审批，任何一人有权驳回", "required": true, "estimatedMinutes": 5 },
+      { "step": 3, "title": "金库现金提取", "description": "双人共同进入金库，按加钞金额清点现金，在《金库出入登记簿》签字", "required": true, "estimatedMinutes": 10 },
+      { "step": 4, "title": "在途押运", "description": "双人同行，全程监控，现金箱不得离开二人视线范围", "required": true, "estimatedMinutes": 5 },
+      { "step": 5, "title": "ATM清机加钞", "description": "一人操作ATM管理菜单进入加钞模式，另一人监督；打开钞箱前先拍照留档", "required": true, "estimatedMinutes": 8 },
+      { "step": 6, "title": "测试与封口", "description": "加钞完成后插入测试卡做一笔100元取款交易验证，打印加钞凭证双人签字", "required": true, "estimatedMinutes": 5 },
+      { "step": 7, "title": "系统核销", "description": "在核心系统登记加钞结果，更新ATM现金余额，上传凭证照片", "required": true, "estimatedMinutes": 3 }
+    ],
+    "notes": "加钞过程严禁单人操作；如遇设备异常立即停止并上报，不得擅自打开机壳维修"
+  },
+  {
+    "id": "proto_003",
+    "code": "SOP-BANK-003",
+    "name": "金库人员准入管理规程",
+    "category": "安全管理",
+    "version": "v4.0",
+    "updatedAt": "2026-05-10",
+    "applicableRoles": ["supervisor", "operation"],
+    "requiredApprovals": 1,
+    "steps": [
+      { "step": 1, "title": "事前申请", "description": "需要进入金库的人员须提前在系统提交《金库进入申请》，注明事由、预计时长", "required": true, "estimatedMinutes": 2 },
+      { "step": 2, "title": "运营经理审批", "description": "运营经理核实人员身份、进入事由，审批通过后系统生成临时准入二维码", "required": true, "estimatedMinutes": 2 },
+      { "step": 3, "title": "身份核验(三重)", "description": "金库入口：①工牌刷卡 ②人脸识别比对(相似度≥85%) ③输入动态密码", "required": true, "estimatedMinutes": 1 },
+      { "step": 4, "title": "双人同进同出", "description": "金库内严禁单人停留，必须双人或以上同时在场，二人相互监督", "required": true, "estimatedMinutes": 0 },
+      { "step": 5, "title": "全程录像", "description": "金库全域无死角监控，录像保存90天，任何人不得调取与本职工作无关的录像", "required": true, "estimatedMinutes": 0 },
+      { "step": 6, "title": "离开登记", "description": "离开金库须在系统登记离开时间、办理事项结果、带出物品清单，人脸识别签退", "required": true, "estimatedMinutes": 2 }
+    ],
+    "notes": "非授权人员靠近金库3米范围内自动触发红色警报；劫持情况下可输入胁迫密码，系统静默报警"
+  },
+  {
+    "id": "proto_004",
+    "code": "SOP-BANK-004",
+    "name": "VIP客户接待服务流程",
+    "category": "客户服务",
+    "version": "v2.0",
+    "updatedAt": "2026-02-28",
+    "applicableRoles": ["teller", "supervisor", "operation"],
+    "requiredApprovals": 0,
+    "steps": [
+      { "step": 1, "title": "预约登记", "description": "客户通过APP/电话/客户经理预约，系统录入客户姓名、等级、业务类型、期望时间", "required": true, "estimatedMinutes": 2 },
+      { "step": 2, "title": "事前准备", "description": "预约前30分钟：准备对应业务资料、VIP室茶点、专属理财经理待命、绿色引导路径预激活", "required": true, "estimatedMinutes": 20 },
+      { "step": 3, "title": "到店迎接", "description": "客户到店后大堂经理1分钟内上前迎接，核实身份，系统自动点亮VIP室绿色引导灯带", "required": true, "estimatedMinutes": 1 },
+      { "step": 4, "title": "专属服务", "description": "理财经理/主管在VIP室一对一服务，严格保密客户信息，涉及产品须充分揭示风险", "required": true, "estimatedMinutes": 30 },
+      { "step": 5, "title": "送别与回访", "description": "服务结束后送客户至门口，24小时内由专属客户经理电话回访服务满意度", "required": false, "estimatedMinutes": 5 }
+    ],
+    "notes": "钻石VIP客户须由主管以上人员接待；白金VIP由理财经理接待；严禁向客户推荐与其风险承受能力不匹配的产品"
+  },
+  {
+    "id": "proto_005",
+    "code": "SOP-BANK-005",
+    "name": "应急处置(抢劫/入侵/火警)",
+    "category": "安全管理",
+    "version": "v5.2",
+    "updatedAt": "2026-05-25",
+    "applicableRoles": ["teller", "supervisor", "operation"],
+    "requiredApprovals": 0,
+    "steps": [
+      { "step": 1, "title": "事件识别与上报", "description": "第一发现人立即按下柜台下方红色紧急报警按钮，并通过对讲系统向监控中心报告", "required": true, "estimatedMinutes": 0.1 },
+      { "step": 2, "title": "全网点锁闭", "description": "系统自动锁闭所有出入口闸门，现金柜台联动门自动落锁，防止嫌疑人逃脱", "required": true, "estimatedMinutes": 0.2 },
+      { "step": 3, "title": "人员疏散", "description": "在确保安全的前提下，由主管指挥客户和员工沿预设的蓝色疏散路径有序撤离至指定集结点", "required": true, "estimatedMinutes": 3 },
+      { "step": 4, "title": "警方联动", "description": "监控中心自动向辖区派出所/110推送警报位置、现场实时画面、嫌疑人体貌特征", "required": true, "estimatedMinutes": 0.3 },
+      { "step": 5, "title": "现场保护", "description": "警方到达前不得擅自恢复营业，保护现场痕迹物证，配合警方调取监控录像", "required": true, "estimatedMinutes": 0 },
+      { "step": 6, "title": "事后复盘", "description": "事件结束后48小时内提交《突发事件处置报告》，评估处置流程缺陷并更新预案", "required": true, "estimatedMinutes": 120 }
+    ],
+    "notes": "遭遇抢劫时以保护人员生命安全为第一优先级，不鼓励员工与嫌疑人正面对抗；胁迫码报警后正常操作即可，切勿表现异常"
+  }
+]

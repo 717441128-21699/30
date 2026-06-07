@@ -15,6 +15,10 @@ import type {
   RefillTaskStatus,
   User,
   AccessRecord,
+  Task,
+  Approval,
+  Protocol,
+  Alert,
 } from '@/types';
 import {
   mockCounters,
@@ -28,8 +32,10 @@ import {
   initialNotifications,
   mockDailyReport,
 } from '@/data/mockData';
+import { bankApi } from '@/api/bankApi';
 
 interface BankState {
+  loaded: boolean;
   counters: Counter[];
   atms: ATM[];
   vault: Vault;
@@ -40,6 +46,11 @@ interface BankState {
   workOrders: WorkOrder[];
   notifications: Notification[];
   dailyReport: DailyReport;
+  tasks: Task[];
+  approvals: Approval[];
+  protocols: Protocol[];
+
+  loadAllFromApi: () => Promise<void>;
 
   activateBackupCounter: (counterId: string) => void;
   adjustQueueCount: (counterId: string, delta: number) => void;
@@ -81,6 +92,7 @@ const addNotification = (
 ];
 
 export const useBankStore = create<BankState>((set, get) => ({
+  loaded: false,
   counters: mockCounters,
   atms: mockATMs,
   vault: mockVault,
@@ -91,6 +103,95 @@ export const useBankStore = create<BankState>((set, get) => ({
   workOrders: mockWorkOrders,
   notifications: initialNotifications,
   dailyReport: mockDailyReport,
+  tasks: [],
+  approvals: [],
+  protocols: [],
+
+  loadAllFromApi: async () => {
+    const [
+      counters,
+      atms,
+      refillTasks,
+      vipCustomers,
+      workOrders,
+      alerts,
+      vaultLogs,
+      tasks,
+      approvals,
+      protocols,
+    ] = await Promise.all([
+      bankApi.getCounters(),
+      bankApi.getATMs(),
+      bankApi.getRefillTasks(),
+      bankApi.getVIPAppointments(),
+      bankApi.getWorkOrders(),
+      bankApi.getAlerts(),
+      bankApi.getVaultLogs(),
+      bankApi.getTasks(),
+      bankApi.getApprovals(),
+      bankApi.getProtocols(),
+    ]);
+
+    const refillMap = new Map<string, RefillTask>();
+    refillTasks.forEach((t) => {
+      const parsed: RefillTask = {
+        ...t,
+        createdAt: t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt as unknown as string),
+        approvedBy: (t.approvedBy || []).map((a) => ({
+          ...a,
+          time: a.time instanceof Date ? a.time : new Date(a.time as unknown as string),
+        })),
+      };
+      refillMap.set(t.atmId, parsed);
+    });
+
+    const mergedATMs: ATM[] = (atms.length ? atms : mockATMs).map((a) => ({
+      ...a,
+      refillTask: refillMap.get(a.id) || a.refillTask,
+    }));
+
+    const mergedVIP: VIPCustomer[] = (vipCustomers.length ? vipCustomers : mockVIPCustomers).map((v) => ({
+      ...v,
+      appointmentTime: v.appointmentTime instanceof Date ? v.appointmentTime : new Date(v.appointmentTime as unknown as string),
+    }));
+
+    const mergedWorkOrders: WorkOrder[] = (workOrders.length ? workOrders : mockWorkOrders).map((w) => ({
+      ...w,
+      createdAt: w.createdAt instanceof Date ? w.createdAt : new Date(w.createdAt as unknown as string),
+    }));
+
+    const alertNotifs: Notification[] = alerts.map((a) => ({
+      id: a.id,
+      type: (a.level === 'warning' ? 'alert' : a.level === 'info' ? 'info' : 'alert') as Notification['type'],
+      title: a.title,
+      message: a.message,
+      timestamp: new Date(a.timestamp as unknown as string),
+      read: false,
+    }));
+
+    const mergedAccess: AccessRecord[] = vaultLogs.map((r) => ({
+      ...r,
+      timestamp: r.timestamp instanceof Date ? r.timestamp : new Date(r.timestamp as unknown as string),
+    }));
+
+    const mergedVault: Vault = {
+      ...mockVault,
+      accessHistory: mergedAccess.length ? mergedAccess : mockVault.accessHistory,
+    };
+
+    set({
+      loaded: true,
+      counters: counters.length ? counters : mockCounters,
+      atms: mergedATMs,
+      vault: mergedVault,
+      vipCustomers: mergedVIP,
+      workOrders: mergedWorkOrders,
+      notifications: [...alertNotifs, ...initialNotifications],
+      tasks,
+      approvals,
+      protocols,
+    });
+  },
 
   activateBackupCounter: (counterId: string) => {
     set((state) => {

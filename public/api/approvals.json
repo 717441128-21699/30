@@ -1,0 +1,109 @@
+[
+  {
+    "id": "app_bank_001",
+    "type": "atm_refill",
+    "targetId": "atm2",
+    "targetName": "ATM-A02",
+    "title": "ATM加钞审批",
+    "requestedBy": "张柜员",
+    "requestedById": "u1",
+    "requestedAt": "2026-06-07T10:25:00.000Z",
+    "requiredApprovalCount": 2,
+    "amount": 455000,
+    "status": "pending",
+    "approvals": [],
+    "rejections": [],
+    "notes": "周末前客流高峰，当前余额45,000元低于阈值，需尽快补充"
+  },
+  {
+    "id": "app_bank_002",
+    "type": "vault_access",
+    "targetId": "vault1",
+    "targetName": "总行金库",
+    "title": "金库进入审批",
+    "requestedBy": "王主管",
+    "requestedById": "u3",
+    "requestedAt": "2026-06-07T09:10:00.000Z",
+    "requiredApprovalCount": 1,
+    "amount": null,
+    "status": "approved",
+    "approvals": [
+      { "userId": "u4", "userName": "赵经理", "role": "operation", "approvedAt": "2026-06-07T09:12:00.000Z", "comment": "同意，每日例行盘库" }
+    ],
+    "rejections": [],
+    "notes": "例行盘库+提取今日柜台所需现金"
+  },
+  {
+    "id": "app_bank_003",
+    "type": "large_withdrawal",
+    "targetId": "cust_001",
+    "targetName": "陈总(VIP)",
+    "title": "大额取现审批(>50万)",
+    "requestedBy": "王主管",
+    "requestedById": "u3",
+    "requestedAt": "2026-06-07T14:20:00.000Z",
+    "requiredApprovalCount": 2,
+    "amount": 800000,
+    "status": "approved",
+    "approvals": [
+      { "userId": "u3", "userName": "王主管", "role": "supervisor", "approvedAt": "2026-06-07T14:22:00.000Z", "comment": "已核实客户身份及预约记录" },
+      { "userId": "u4", "userName": "赵经理", "role": "operation", "approvedAt": "2026-06-07T14:25:00.000Z", "comment": "已确认现金库存充足，同意支取" }
+    ],
+    "rejections": [],
+    "notes": "钻石VIP客户，提前一天电话预约，用途说明：购房首付"
+  },
+  {
+    "id": "app_bank_004",
+    "type": "overtime_work",
+    "targetId": "staff_group",
+    "targetName": "营业一部",
+    "title": "周末加班申请",
+    "requestedBy": "李柜员",
+    "requestedById": "u2",
+    "requestedAt": "2026-06-06T17:30:00.000Z",
+    "requiredApprovalCount": 1,
+    "amount": null,
+    "status": "approved",
+    "approvals": [
+      { "userId": "u3", "userName": "王主管", "role": "supervisor", "approvedAt": "2026-06-06T18:00:00.000Z", "comment": "同意，月末企业代发工资集中期" }
+    ],
+    "rejections": [],
+    "notes": "6月8日(周日)加班半天，处理23家企业代发工资录入"
+  },
+  {
+    "id": "app_bank_005",
+    "type": "counter_activation",
+    "targetId": "c5",
+    "targetName": "5号备用窗口",
+    "title": "启用备用柜台审批",
+    "requestedBy": "张柜员",
+    "requestedById": "u1",
+    "requestedAt": "2026-06-07T11:05:00.000Z",
+    "requiredApprovalCount": 1,
+    "amount": null,
+    "status": "auto_approved",
+    "approvals": [
+      { "userId": "system", "userName": "系统自动", "role": "operation", "approvedAt": "2026-06-07T11:05:00.000Z", "comment": "3号柜台排队人数>=10，自动触发备用窗口启用" }
+    ],
+    "rejections": [],
+    "notes": "系统根据排队预警规则自动审批"
+  },
+  {
+    "id": "app_bank_006",
+    "type": "purchase_order",
+    "targetId": "po_2026_042",
+    "targetName": "打印机耗材采购",
+    "title": "办公耗材采购审批",
+    "requestedBy": "李柜员",
+    "requestedById": "u2",
+    "requestedAt": "2026-06-05T10:00:00.000Z",
+    "requiredApprovalCount": 1,
+    "amount": 3200,
+    "status": "rejected",
+    "approvals": [],
+    "rejections": [
+      { "userId": "u4", "userName": "赵经理", "role": "operation", "rejectedAt": "2026-06-05T15:20:00.000Z", "reason": "上月刚采购过同类耗材，请核实实际库存后重新申请" }
+    ],
+    "notes": "申请采购：硒鼓4个、打印纸20箱、色带10盒"
+  }
+]
