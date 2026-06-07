@@ -1,0 +1,16 @@
+[
+  {
+    "id": "refill_001",
+    "atmId": "atm2",
+    "atmName": "ATM-A02",
+    "requestedBy": "张柜员",
+    "requestedAt": "2026-06-07T10:25:00.000Z",
+    "approvedBy": [],
+    "status": "pending_approval",
+    "requiredApprovalCount": 2,
+    "currentBalance": 45000,
+    "targetBalance": 500000,
+    "path": [[0, 0.15, 8], [-8, 0.15, 5], [-8, 0.15, 6.5]],
+    "notes": "周末前客流高峰，需尽快补充"
+  }
+]

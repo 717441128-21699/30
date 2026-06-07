@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import Lights from './Lights';
 import Counter3D from './Counter3D';
@@ -39,7 +39,7 @@ export default function BankScene() {
   const refillPaths = useMemo(
     () =>
       atms
-        .filter((a) => a.refillTask && (a.refillTask.status === 'confirmed' || a.refillTask.status === 'inProgress'))
+        .filter((a) => a.refillTask && (a.refillTask.status === 'approved' || a.refillTask.status === 'refilling'))
         .map((a) => ({ id: a.id, path: a.refillTask!.path })),
     [atms]
   );
@@ -57,7 +57,6 @@ export default function BankScene() {
       <color attach="background" args={[emergency.active ? '#1a0508' : '#050a15']} />
       <fog attach="fog" args={[emergency.active ? '#2a0508' : '#050a15', 15, 45]} />
       <Lights />
-      <Environment preset="city" />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[40, 30]} />

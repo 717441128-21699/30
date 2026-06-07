@@ -12,6 +12,9 @@ import type {
   DailyReport,
   EmergencyType,
   RefillTask,
+  RefillTaskStatus,
+  User,
+  AccessRecord,
 } from '@/types';
 import {
   mockCounters,
@@ -41,11 +44,16 @@ interface BankState {
   activateBackupCounter: (counterId: string) => void;
   adjustQueueCount: (counterId: string, delta: number) => void;
 
-  confirmRefillTask: (atmId: string, userId: string) => void;
+  requestRefill: (atmId: string, user: User, notes?: string) => void;
+  approveRefillTask: (atmId: string, taskId: string, user: User) => void;
+  startRefill: (atmId: string) => void;
   completeRefill: (atmId: string) => void;
   updateATMBalance: (atmId: string, newBalance: number) => void;
 
+  recordVaultAccess: (userId: string, userName: string, authorized: boolean, action?: AccessRecord['action']) => void;
   tryVaultAccess: (userId: string, userName: string, authorized: boolean) => void;
+  openVault: () => void;
+  closeVault: () => void;
   toggleVaultLock: () => void;
   clearVaultAlert: () => void;
 
@@ -124,51 +132,101 @@ export const useBankStore = create<BankState>((set, get) => ({
     });
   },
 
-  confirmRefillTask: (atmId: string, userId: string) => {
+  requestRefill: (atmId: string, user: User, notes?: string) => {
+    set((state) => {
+      const atm = state.atms.find((a) => a.id === atmId);
+      if (!atm || atm.refillTask) return state;
+
+      const path: [number, number, number][] = [
+        [0, 0.15, 8],
+        [atm.position[0], 0.15, atm.position[2] - 1.5],
+        [atm.position[0], 0.15, atm.position[2]],
+      ];
+      const task: RefillTask = {
+        id: `rt_${Date.now()}`,
+        atmId,
+        atmName: atm.name,
+        createdAt: new Date(),
+        requestedBy: user.id,
+        requestedByName: user.name,
+        approvedBy: [],
+        status: 'pending_approval',
+        requiredApprovalCount: 2,
+        path,
+        currentBalance: atm.cashBalance,
+        targetBalance: atm.maxCapacity,
+        notes,
+      };
+
+      const notification: Omit<Notification, 'id' | 'timestamp' | 'read'> = {
+        type: 'refill_approval',
+        title: '加钞申请待审批',
+        message: `${user.name}发起${atm.name}加钞申请，当前余额¥${atm.cashBalance.toLocaleString()}，请审批(需2人)`,
+        action: { type: 'approve_refill', taskId: task.id, atmId },
+      };
+
+      return {
+        atms: state.atms.map((a) => (a.id === atmId ? { ...a, refillTask: task } : a)),
+        notifications: addNotification(state.notifications, notification),
+      };
+    });
+  },
+
+  approveRefillTask: (atmId: string, taskId: string, user: User) => {
     set((state) => {
       let notifications = state.notifications;
-      const atms: ATM[] = state.atms.map((atm) => {
-        if (atm.id !== atmId) return atm;
-        const existingTask = atm.refillTask;
-        const path: [number, number, number][] = [
-          [0, 0.15, 8],
-          [atm.position[0], 0.15, atm.position[2] - 1.5],
-          [atm.position[0], 0.15, atm.position[2]],
-        ];
-        if (existingTask) {
-          const confirmed = existingTask.confirmedBy.includes(userId)
-            ? existingTask.confirmedBy
-            : [...existingTask.confirmedBy, userId];
-          const newStatus: RefillTask['status'] = confirmed.length >= 2 ? 'confirmed' : existingTask.status;
-          if (newStatus === 'confirmed' && existingTask.status !== 'confirmed') {
-            notifications = addNotification(notifications, {
-              type: 'refill',
-              title: '加钞任务已确认',
-              message: `${atm.name}加钞任务双人确认完成，蓝色引导路径已显示`,
-            });
-          }
-          const atmStatus: ATM['status'] = newStatus === 'confirmed' ? 'refilling' : atm.status;
+      const atms = state.atms.map((atm) => {
+        if (atm.id !== atmId || !atm.refillTask || atm.refillTask.id !== taskId) return atm;
+        const task = atm.refillTask;
+        if (task.approvedBy.some((a) => a.userId === user.id)) {
+          notifications = addNotification(notifications, {
+            type: 'info',
+            title: '重复审批',
+            message: `${user.name}已审批过${atm.name}加钞申请`,
+          });
+          return atm;
+        }
+        const newApprovedBy = [...task.approvedBy, { userId: user.id, userName: user.name, time: new Date() }];
+        const newStatus: RefillTaskStatus = newApprovedBy.length >= task.requiredApprovalCount ? 'approved' : 'pending_approval';
+
+        if (newStatus === 'approved' && task.status !== 'approved') {
+          notifications = addNotification(notifications, {
+            type: 'refill',
+            title: '加钞审批完成',
+            message: `${atm.name}加钞任务双人审批通过，蓝色引导路径已显示，请开始加钞`,
+          });
           return {
             ...atm,
-            status: atmStatus,
-            refillTask: { ...existingTask, confirmedBy: confirmed, status: newStatus },
-          };
-        } else {
-          return {
-            ...atm,
-            refillTask: {
-              id: `rt_${Date.now()}`,
-              atmId,
-              createdAt: new Date(),
-              confirmedBy: [userId],
-              status: 'pending' as const,
-              path,
-            },
+            status: 'refilling' as const,
+            refillTask: { ...task, approvedBy: newApprovedBy, status: newStatus },
           };
         }
+        notifications = addNotification(notifications, {
+          type: 'refill_approval',
+          title: '加钞审批进度更新',
+          message: `${user.name}已批准${atm.name}加钞申请(${newApprovedBy.length}/${task.requiredApprovalCount})`,
+          action:
+            newStatus === 'pending_approval'
+              ? { type: 'approve_refill', taskId: task.id, atmId }
+              : undefined,
+        });
+        return {
+          ...atm,
+          refillTask: { ...task, approvedBy: newApprovedBy, status: newStatus },
+        };
       });
       return { atms, notifications };
     });
+  },
+
+  startRefill: (atmId: string) => {
+    set((state) => ({
+      atms: state.atms.map((atm) =>
+        atm.id === atmId && atm.refillTask
+          ? { ...atm, status: 'refilling', refillTask: { ...atm.refillTask, status: 'refilling' as const } }
+          : atm
+      ),
+    }));
   },
 
   completeRefill: (atmId: string) => {
@@ -191,14 +249,13 @@ export const useBankStore = create<BankState>((set, get) => ({
       let notifications = state.notifications;
       const atms: ATM[] = state.atms.map((atm) => {
         if (atm.id !== atmId) return atm;
-        if (newBalance < atm.threshold && atm.status === 'normal') {
+        if (newBalance < atm.threshold && atm.status === 'normal' && !atm.refillTask) {
           notifications = addNotification(notifications, {
             type: 'refill',
             title: 'ATM加钞提醒',
-            message: `${atm.name}现金余额${newBalance.toLocaleString()}元，已低于阈值${atm.threshold.toLocaleString()}元`,
+            message: `${atm.name}现金余额¥${newBalance.toLocaleString()}，已低于阈值¥${atm.threshold.toLocaleString()}`,
           });
-          const status: ATM['status'] = 'low';
-          return { ...atm, cashBalance: newBalance, status };
+          return { ...atm, cashBalance: newBalance, status: 'low' };
         }
         return { ...atm, cashBalance: newBalance };
       });
@@ -206,9 +263,9 @@ export const useBankStore = create<BankState>((set, get) => ({
     });
   },
 
-  tryVaultAccess: (userId: string, userName: string, authorized: boolean) => {
+  recordVaultAccess: (userId, userName, authorized, action) => {
     set((state) => {
-      const record = { userId, userName, timestamp: new Date(), authorized };
+      const record: AccessRecord = { userId, userName, timestamp: new Date(), authorized, action: action || (authorized ? 'entry' : 'attempted_entry') };
       if (!authorized) {
         return {
           vault: {
@@ -218,19 +275,38 @@ export const useBankStore = create<BankState>((set, get) => ({
           },
           notifications: addNotification(state.notifications, {
             type: 'alert',
-            title: '金库警报！',
-            message: `检测到非授权人员尝试进入金库！${userName} 身份验证失败`,
+            title: '🚨 金库警报！',
+            message: `检测到非授权人员[${userName}]尝试进入金库，身份验证失败！安保人员请注意`,
+            action: { type: 'mark_vault_alert' },
           }),
         };
       }
       return {
         vault: {
           ...state.vault,
+          isLocked: false,
           lastAccess: new Date(),
           accessHistory: [record, ...state.vault.accessHistory],
         },
+        notifications: addNotification(state.notifications, {
+          type: 'info',
+          title: '金库访问记录',
+          message: `${userName}通过人脸识别成功进入金库`,
+        }),
       };
     });
+  },
+
+  tryVaultAccess: (userId: string, userName: string, authorized: boolean) => {
+    get().recordVaultAccess(userId, userName, authorized);
+  },
+
+  openVault: () => {
+    set((state) => ({ vault: { ...state.vault, isLocked: false } }));
+  },
+
+  closeVault: () => {
+    set((state) => ({ vault: { ...state.vault, isLocked: true } }));
   },
 
   toggleVaultLock: () => {

@@ -1,0 +1,43 @@
+[
+  {
+    "id": "login_001",
+    "userId": "u3",
+    "userName": "王主管",
+    "role": "supervisor",
+    "timestamp": "2026-06-07T08:30:00.000Z",
+    "success": true,
+    "ip": "192.168.1.101",
+    "faceVerified": true
+  },
+  {
+    "id": "login_002",
+    "userId": "u1",
+    "userName": "张柜员",
+    "role": "teller",
+    "timestamp": "2026-06-07T08:45:00.000Z",
+    "success": true,
+    "ip": "192.168.1.102",
+    "faceVerified": true
+  },
+  {
+    "id": "login_003",
+    "userId": "u2",
+    "userName": "李柜员",
+    "role": "teller",
+    "timestamp": "2026-06-07T08:50:00.000Z",
+    "success": true,
+    "ip": "192.168.1.103",
+    "faceVerified": true
+  },
+  {
+    "id": "login_004",
+    "userId": "unknown",
+    "userName": "未知人员",
+    "role": "none",
+    "timestamp": "2026-06-07T09:02:00.000Z",
+    "success": false,
+    "ip": "192.168.1.200",
+    "faceVerified": false,
+    "failReason": "人脸库未匹配"
+  }
+]

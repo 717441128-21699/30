@@ -1,0 +1,47 @@
+[
+  {
+    "id": "alert_bank_001",
+    "type": "vault_authorized",
+    "level": "info",
+    "title": "金库正常访问",
+    "message": "王主管(主管)通过人脸识别进入金库",
+    "timestamp": "2026-06-07T09:15:00.000Z",
+    "location": "金库"
+  },
+  {
+    "id": "alert_bank_002",
+    "type": "atm_low_cash",
+    "level": "warning",
+    "title": "ATM现金余额不足",
+    "message": "ATM-A02现金余额45,000元，已低于阈值100,000元",
+    "timestamp": "2026-06-07T10:20:00.000Z",
+    "location": "自助区A"
+  },
+  {
+    "id": "alert_bank_003",
+    "type": "queue_overload",
+    "level": "warning",
+    "title": "柜台排队超员",
+    "message": "3号柜台排队人数达12人，系统已自动启用备用窗口",
+    "timestamp": "2026-06-07T11:05:00.000Z",
+    "location": "营业大厅"
+  },
+  {
+    "id": "alert_bank_004",
+    "type": "vip_arrival",
+    "level": "info",
+    "title": "VIP客户到店",
+    "message": "陈总(VIP)已到店，绿色引导路径已激活",
+    "timestamp": "2026-06-07T14:08:00.000Z",
+    "location": "入口/VIP室"
+  },
+  {
+    "id": "alert_bank_005",
+    "type": "suspicious_behavior",
+    "level": "warning",
+    "title": "异常行为检测",
+    "message": "自助区检测到人员逗留超时(>15分钟)，已自动提示",
+    "timestamp": "2026-06-07T11:32:00.000Z",
+    "location": "自助区B"
+  }
+]

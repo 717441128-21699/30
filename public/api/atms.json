@@ -1,0 +1,6 @@
+[
+  { "id": "atm1", "name": "ATM-A01", "cashBalance": 280000, "threshold": 100000, "maxCapacity": 500000, "status": "normal", "position": [-8, 0, 4], "todayWithdrawals": 186 },
+  { "id": "atm2", "name": "ATM-A02", "cashBalance": 45000, "threshold": 100000, "maxCapacity": 500000, "status": "low", "position": [-8, 0, 6.5], "todayWithdrawals": 245 },
+  { "id": "atm3", "name": "ATM-B01", "cashBalance": 320000, "threshold": 100000, "maxCapacity": 500000, "status": "normal", "position": [10, 0, 4], "todayWithdrawals": 132 },
+  { "id": "atm4", "name": "ATM-B02", "cashBalance": 180000, "threshold": 100000, "maxCapacity": 500000, "status": "normal", "position": [10, 0, 6.5], "todayWithdrawals": 167 }
+]

@@ -1,11 +1,13 @@
-import { Bell, X, AlertTriangle, DollarSign, Shield, Info, Siren, Crown, Wrench, CheckCheck } from 'lucide-react';
+import { Bell, X, AlertTriangle, DollarSign, Shield, Info, Siren, Crown, Wrench, CheckCheck, UserCheck } from 'lucide-react';
 import { useBankStore } from '@/store/useBankStore';
+import { useUserStore } from '@/store/useUserStore';
 import { cn, formatTime } from '@/utils';
 import type { NotificationType } from '@/types';
 
 const typeConfig: Record<NotificationType, { color: string; icon: typeof Bell; label: string }> = {
   queue: { color: 'orange', icon: AlertTriangle, label: '排队' },
   refill: { color: 'blue', icon: DollarSign, label: '加钞' },
+  refill_approval: { color: 'blue', icon: UserCheck, label: '审批' },
   alert: { color: 'red', icon: Shield, label: '警报' },
   info: { color: 'cyan', icon: Info, label: '信息' },
   emergency: { color: 'red', icon: Siren, label: '紧急' },
@@ -17,7 +19,23 @@ export default function NotificationPanel() {
   const notifications = useBankStore((s) => s.notifications);
   const markRead = useBankStore((s) => s.markNotificationRead);
   const clearAll = useBankStore((s) => s.clearAllNotifications);
+  const approveRefill = useBankStore((s) => s.approveRefillTask);
+  const clearVaultAlert = useBankStore((s) => s.clearVaultAlert);
+  const user = useUserStore((s) => s.currentUser);
   const unread = notifications.filter((n) => !n.read).length;
+
+  const handleAction = (n: (typeof notifications)[number], e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!n.action || !user) return;
+    if (n.action.type === 'approve_refill') {
+      approveRefill(n.action.atmId, n.action.taskId, user);
+    } else if (n.action.type === 'mark_vault_alert') {
+      clearVaultAlert();
+    }
+    markRead(n.id);
+  };
+
+  const canApproveRefill = user && (user.role === 'supervisor' || user.role === 'operation');
 
   return (
     <div className="hud-panel rounded-lg p-1 relative overflow-hidden">
@@ -43,13 +61,17 @@ export default function NotificationPanel() {
           </button>
         )}
       </div>
-      <div className="space-y-1 max-h-[180px] overflow-y-auto px-1 pb-1">
+      <div className="space-y-1 max-h-[220px] overflow-y-auto px-1 pb-1">
         {notifications.length === 0 && (
           <div className="text-center text-slate-500 text-xs py-4">暂无通知</div>
         )}
         {notifications.map((n) => {
           const cfg = typeConfig[n.type];
           const Icon = cfg.icon;
+          const needsApproval =
+            n.action?.type === 'approve_refill' &&
+            canApproveRefill &&
+            !n.read;
           return (
             <div
               key={n.id}
@@ -57,7 +79,7 @@ export default function NotificationPanel() {
               className={cn(
                 'relative rounded px-2 py-1.5 cursor-pointer transition-all border',
                 n.read
-                  ? 'bg-slate-900/20 border-slate-800/50 opacity-60'
+                  ? 'bg-slate-900/20 border-slate-800/50 opacity-70'
                   : cfg.color === 'red'
                   ? 'bg-red-950/40 border-red-500/40'
                   : cfg.color === 'orange'
@@ -89,6 +111,25 @@ export default function NotificationPanel() {
                     <span className="text-[9px] text-slate-500 ml-auto">{formatTime(n.timestamp)}</span>
                   </div>
                   <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{n.message}</div>
+
+                  {needsApproval && (
+                    <button
+                      onClick={(e) => handleAction(n, e)}
+                      className="mt-1.5 px-2 py-1 text-[9px] rounded bg-cyan-600/50 border border-cyan-400/60 text-cyan-100 font-orbitron hover:bg-cyan-500/60 flex items-center gap-1"
+                    >
+                      <UserCheck className="w-2.5 h-2.5" />
+                      审批通过
+                    </button>
+                  )}
+                  {n.action?.type === 'mark_vault_alert' && !n.read && (
+                    <button
+                      onClick={(e) => handleAction(n, e)}
+                      className="mt-1.5 px-2 py-1 text-[9px] rounded bg-red-600/50 border border-red-400/60 text-red-100 font-orbitron hover:bg-red-500/60 flex items-center gap-1"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                      已响应警报
+                    </button>
+                  )}
                 </div>
                 {!n.read && (
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1 animate-pulse flex-shrink-0" />

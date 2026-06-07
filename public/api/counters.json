@@ -1,0 +1,8 @@
+[
+  { "id": "c1", "number": 1, "queueCount": 5, "isActive": true, "isBackup": false, "tellerId": "u1", "position": [-6, 0, -2], "todayTransactions": 256 },
+  { "id": "c2", "number": 2, "queueCount": 8, "isActive": true, "isBackup": false, "tellerId": "u2", "position": [-3, 0, -2], "todayTransactions": 289 },
+  { "id": "c3", "number": 3, "queueCount": 12, "isActive": true, "isBackup": false, "position": [0, 0, -2], "todayTransactions": 312 },
+  { "id": "c4", "number": 4, "queueCount": 3, "isActive": true, "isBackup": false, "position": [3, 0, -2], "todayTransactions": 228 },
+  { "id": "c5", "number": 5, "queueCount": 0, "isActive": false, "isBackup": true, "position": [6, 0, -2], "todayTransactions": 112 },
+  { "id": "c6", "number": 6, "queueCount": 0, "isActive": false, "isBackup": true, "position": [9, 0, -2], "todayTransactions": 89 }
+]

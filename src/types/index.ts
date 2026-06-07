@@ -16,6 +16,7 @@ export interface Counter {
   isBackup: boolean;
   tellerId?: string;
   position: [number, number, number];
+  todayTransactions?: number;
 }
 
 export interface ATM {
@@ -27,15 +28,25 @@ export interface ATM {
   status: 'normal' | 'low' | 'refilling' | 'offline';
   position: [number, number, number];
   refillTask?: RefillTask;
+  todayWithdrawals?: number;
 }
+
+export type RefillTaskStatus = 'pending_approval' | 'approved' | 'refilling' | 'completed';
 
 export interface RefillTask {
   id: string;
   atmId: string;
+  atmName: string;
   createdAt: Date;
-  confirmedBy: string[];
-  status: 'pending' | 'confirmed' | 'inProgress' | 'completed';
+  requestedBy: string;
+  requestedByName: string;
+  approvedBy: { userId: string; userName: string; time: Date }[];
+  status: RefillTaskStatus;
+  requiredApprovalCount: number;
   path: [number, number, number][];
+  currentBalance: number;
+  targetBalance: number;
+  notes?: string;
 }
 
 export interface AccessRecord {
@@ -43,6 +54,7 @@ export interface AccessRecord {
   userName: string;
   timestamp: Date;
   authorized: boolean;
+  action?: 'entry' | 'exit' | 'attempted_entry';
 }
 
 export interface Vault {
@@ -57,10 +69,14 @@ export interface Vault {
 export interface VIPCustomer {
   id: string;
   name: string;
+  phone?: string;
+  level?: '黄金' | '白金' | '钻石';
   appointmentId: string;
   appointmentTime: Date;
   status: 'waiting' | 'guided' | 'serving' | 'timeout';
   guidePath: [number, number, number][];
+  businessType?: string;
+  handler?: string;
 }
 
 export interface ForecastData {
@@ -87,6 +103,7 @@ export interface Emergency {
 }
 
 export type WorkOrderStatus = 'pending' | 'assigned' | 'inProgress' | 'resolved';
+export type WorkOrderPriority = 'low' | 'medium' | 'high';
 
 export interface WorkOrder {
   id: string;
@@ -97,9 +114,15 @@ export interface WorkOrder {
   createdAt: Date;
   assignee?: string;
   deviceType: 'atm' | 'counter' | 'camera' | 'door' | 'other';
+  priority?: WorkOrderPriority;
 }
 
-export type NotificationType = 'queue' | 'refill' | 'alert' | 'info' | 'emergency' | 'vip' | 'workorder';
+export type NotificationType = 'queue' | 'refill' | 'alert' | 'info' | 'emergency' | 'vip' | 'workorder' | 'refill_approval';
+
+export type NotificationAction =
+  | { type: 'approve_refill'; taskId: string; atmId: string }
+  | { type: 'mark_vault_alert' }
+  | null;
 
 export interface Notification {
   id: string;
@@ -108,6 +131,7 @@ export interface Notification {
   message: string;
   timestamp: Date;
   read: boolean;
+  action?: NotificationAction;
 }
 
 export interface DailyReport {
@@ -122,7 +146,10 @@ export interface LoginLog {
   id: string;
   userId: string;
   userName: string;
-  role: UserRole;
+  role: UserRole | 'none';
   timestamp: Date;
   success: boolean;
+  ip?: string;
+  faceVerified?: boolean;
+  failReason?: string;
 }

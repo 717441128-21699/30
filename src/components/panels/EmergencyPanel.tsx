@@ -1,8 +1,10 @@
-import { AlertTriangle, Lock, Shield, Siren, XCircle, Flame, Skull, Eye } from 'lucide-react';
+import { AlertTriangle, Lock, Shield, Siren, XCircle, Flame, Skull, Eye, Camera } from 'lucide-react';
 import { useBankStore } from '@/store/useBankStore';
 import type { EmergencyType } from '@/types';
 import { useUserStore } from '@/store/useUserStore';
 import { cn } from '@/utils';
+import { useState } from 'react';
+import VaultFaceRecognitionModal from '@/components/VaultFaceRecognitionModal';
 
 const emergencyTypes: { type: EmergencyType; label: string; icon: typeof Flame; color: string }[] = [
   { type: 'fire', label: '火警', icon: Flame, color: 'orange' },
@@ -16,10 +18,13 @@ export default function EmergencyPanel() {
   const triggerEmergency = useBankStore((s) => s.triggerEmergency);
   const resolveEmergency = useBankStore((s) => s.resolveEmergency);
   const vault = useBankStore((s) => s.vault);
-  const tryVaultAccess = useBankStore((s) => s.tryVaultAccess);
+  const recordVaultAccess = useBankStore((s) => s.recordVaultAccess);
   const clearVaultAlert = useBankStore((s) => s.clearVaultAlert);
+  const closeVault = useBankStore((s) => s.closeVault);
   const user = useUserStore((s) => s.currentUser);
   const canManage = user?.role === 'supervisor' || user?.role === 'operation';
+
+  const [showVaultFace, setShowVaultFace] = useState(false);
 
   return (
     <div className={cn('hud-panel rounded-lg p-1 relative overflow-hidden', emergency.active && 'emergency-active')}>
@@ -75,7 +80,12 @@ export default function EmergencyPanel() {
         </div>
 
         <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-          <div className={cn('rounded border px-2 py-1.5', emergency.doorsLocked ? 'bg-red-950/50 border-red-500/50' : 'bg-slate-900/40 border-slate-700/50')}>
+          <div
+            className={cn(
+              'rounded border px-2 py-1.5',
+              emergency.doorsLocked ? 'bg-red-950/50 border-red-500/50' : 'bg-slate-900/40 border-slate-700/50'
+            )}
+          >
             <div className="flex items-center gap-1">
               <Lock className={cn('w-3 h-3', emergency.doorsLocked ? 'text-red-400' : 'text-slate-400')} />
               <span className={cn('font-orbitron', emergency.doorsLocked ? 'text-red-300' : 'text-slate-300')}>
@@ -83,11 +93,21 @@ export default function EmergencyPanel() {
               </span>
             </div>
           </div>
-          <div className={cn('rounded border px-2 py-1.5', vault.alertActive ? 'bg-red-950/50 border-red-500/50 animate-pulse' : 'bg-slate-900/40 border-slate-700/50')}>
+          <div
+            className={cn(
+              'rounded border px-2 py-1.5',
+              vault.alertActive ? 'bg-red-950/50 border-red-500/50 animate-pulse' : 'bg-slate-900/40 border-slate-700/50'
+            )}
+          >
             <div className="flex items-center gap-1">
-              <Shield className={cn('w-3 h-3', vault.alertActive ? 'text-red-400 animate-bounce' : 'text-emerald-400')} />
-              <span className={cn('font-orbitron', vault.alertActive ? 'text-red-300' : 'text-emerald-300')}>
-                金库:{vault.alertActive ? '警报' : '安全'}
+              <Shield className={cn('w-3 h-3', vault.alertActive ? 'text-red-400 animate-bounce' : vault.isLocked ? 'text-emerald-400' : 'text-orange-400')} />
+              <span
+                className={cn(
+                  'font-orbitron',
+                  vault.alertActive ? 'text-red-300' : vault.isLocked ? 'text-emerald-300' : 'text-orange-300'
+                )}
+              >
+                金库:{vault.alertActive ? '警报' : vault.isLocked ? '已锁' : '已开'}
               </span>
             </div>
           </div>
@@ -97,29 +117,46 @@ export default function EmergencyPanel() {
           <div className="text-[10px] text-slate-400 font-orbitron mb-1.5">金库访问控制</div>
           <div className="grid grid-cols-2 gap-1.5">
             <button
-              onClick={() => user && tryVaultAccess(user.id, user.name, true)}
+              onClick={() => setShowVaultFace(true)}
               disabled={!user}
-              className="btn-glow py-1.5 rounded bg-emerald-900/40 border border-emerald-500/60 text-emerald-200 font-orbitron text-[10px] hover:bg-emerald-800/50 disabled:opacity-50"
+              className="btn-glow py-1.5 rounded bg-emerald-900/40 border border-emerald-500/60 text-emerald-200 font-orbitron text-[10px] hover:bg-emerald-800/50 disabled:opacity-50 flex items-center justify-center gap-1"
             >
-              授权进入
+              <Camera className="w-3 h-3" />
+              人脸识别开门
             </button>
             <button
-              onClick={() => tryVaultAccess('intruder', '未知人员', false)}
-              className="btn-glow py-1.5 rounded bg-red-900/40 border border-red-500/60 text-red-200 font-orbitron text-[10px] hover:bg-red-800/50"
+              onClick={() => user && recordVaultAccess('intruder', '未知人员', false, 'attempted_entry')}
+              className="btn-glow py-1.5 rounded bg-red-900/40 border border-red-500/60 text-red-200 font-orbitron text-[10px] hover:bg-red-800/50 flex items-center justify-center gap-1"
             >
-              模拟入侵
+              模拟非法入侵
             </button>
           </div>
+          {!vault.isLocked && !vault.alertActive && (
+            <button
+              onClick={closeVault}
+              className="mt-1.5 w-full py-1.5 rounded bg-slate-800/60 border border-slate-600 text-slate-200 font-orbitron text-[10px] hover:bg-slate-700/60"
+            >
+              关闭金库门
+            </button>
+          )}
           {vault.alertActive && (
             <button
               onClick={clearVaultAlert}
-              className="mt-1.5 w-full py-1.5 rounded bg-slate-800/60 border border-slate-600 text-slate-200 font-orbitron text-[10px] hover:bg-slate-700/60"
+              disabled={!canManage}
+              className="mt-1.5 w-full py-1.5 rounded bg-slate-800/60 border border-slate-600 text-slate-200 font-orbitron text-[10px] hover:bg-slate-700/60 disabled:opacity-50"
             >
-              清除警报
+              清除警报 (需主管权限)
             </button>
           )}
         </div>
       </div>
+
+      <VaultFaceRecognitionModal
+        open={showVaultFace}
+        onClose={() => setShowVaultFace(false)}
+        onSuccess={() => user && recordVaultAccess(user.id, user.name, true, 'entry')}
+        onUnauthorized={(name) => recordVaultAccess('intruder', name, false, 'attempted_entry')}
+      />
     </div>
   );
 }

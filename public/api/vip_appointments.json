@@ -1,0 +1,25 @@
+[
+  {
+    "id": "vip_001",
+    "name": "陈总",
+    "phone": "138****8888",
+    "level": "钻石",
+    "appointmentId": "APP20260607001",
+    "appointmentTime": "2026-06-07T14:00:00.000Z",
+    "status": "guided",
+    "businessType": "私人银行业务咨询",
+    "guidePath": [[0, 0.15, 0], [6, 0.15, 0], [6, 0.15, 5]],
+    "handler": "王主管"
+  },
+  {
+    "id": "vip_002",
+    "name": "刘女士",
+    "phone": "139****6666",
+    "level": "白金",
+    "appointmentId": "APP20260607002",
+    "appointmentTime": "2026-06-07T15:30:00.000Z",
+    "status": "waiting",
+    "businessType": "大额定期存款",
+    "guidePath": [[0, 0.15, 0], [6, 0.15, 0], [6, 0.15, 5]]
+  }
+]

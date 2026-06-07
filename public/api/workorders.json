@@ -1,0 +1,45 @@
+[
+  {
+    "id": "wo_bank_001",
+    "deviceId": "atm2",
+    "deviceName": "ATM-A02",
+    "deviceType": "atm",
+    "issue": "读卡器故障，无法识别银行卡",
+    "status": "inProgress",
+    "createdAt": "2026-06-07T09:30:00.000Z",
+    "assignee": "张柜员",
+    "priority": "high"
+  },
+  {
+    "id": "wo_bank_002",
+    "deviceId": "cam_vault_01",
+    "deviceName": "金库监控摄像头",
+    "deviceType": "camera",
+    "issue": "画面模糊，需要清洁或更换镜头",
+    "status": "pending",
+    "createdAt": "2026-06-07T08:15:00.000Z",
+    "priority": "medium"
+  },
+  {
+    "id": "wo_bank_003",
+    "deviceId": "counter_3",
+    "deviceName": "3号柜台打印机",
+    "deviceType": "counter",
+    "issue": "卡纸频繁，需更换搓纸轮",
+    "status": "assigned",
+    "createdAt": "2026-06-07T10:45:00.000Z",
+    "assignee": "李柜员",
+    "priority": "low"
+  },
+  {
+    "id": "wo_bank_004",
+    "deviceId": "door_main",
+    "deviceName": "主入口电动门",
+    "deviceType": "door",
+    "issue": "感应延迟，需校准传感器",
+    "status": "resolved",
+    "createdAt": "2026-06-07T07:00:00.000Z",
+    "assignee": "运维部",
+    "priority": "medium"
+  }
+]
