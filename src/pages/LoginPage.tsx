@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Shield, User2, ChevronRight, Fingerprint, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Camera, Shield, User2, ChevronRight, Fingerprint, CheckCircle2, XCircle, Loader2, UserPlus, ScanLine } from 'lucide-react';
 import { useUserStore } from '@/store/useUserStore';
 import type { UserRole } from '@/types';
 import { cn, roleLabel } from '@/utils';
+import { hasRegisteredFace, registerFace, verifyFace } from '@/utils/faceAuth';
+import type { VerifyResult } from '@/utils/faceAuth';
 
 const roles: { role: UserRole; label: string; desc: string; color: string }[] = [
   { role: 'teller', label: '柜员', desc: '查看柜台、处理业务、设备报障', color: 'cyan' },
@@ -26,17 +28,26 @@ export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<UserRole>('supervisor');
   const [selectedUserId, setSelectedUserId] = useState<string>('u3');
   const [scanning, setScanning] = useState(false);
-  const [scanStep, setScanStep] = useState<'idle' | 'camera' | 'capturing' | 'comparing' | 'success' | 'failed'>('idle');
+  const [scanStep, setScanStep] = useState<
+    'idle' | 'camera' | 'registering' | 'capturing' | 'comparing' | 'success' | 'failed'
+  >('idle');
   const [cameraActive, setCameraActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+  const [needsRegister, setNeedsRegister] = useState<boolean>(() => !hasRegisteredFace('u3'));
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
+  const [registerSamples, setRegisterSamples] = useState(0);
 
   useEffect(() => {
     return () => stopCamera();
   }, []);
+
+  useEffect(() => {
+    setNeedsRegister(!hasRegisteredFace(selectedUserId));
+  }, [selectedUserId]);
 
   const startCamera = async () => {
     try {
@@ -52,9 +63,9 @@ export default function LoginPage() {
       }
       setCameraActive(true);
       setScanStep('camera');
-      setTimeout(() => setFaceDetected(true), 800);
+      setTimeout(() => setFaceDetected(true), 1000);
     } catch (err) {
-      console.warn('摄像头启动失败，使用模拟识别:', err);
+      setErrorMsg('摄像头启动失败，请检查权限后重试');
       setCameraActive(false);
       setScanStep('camera');
       setFaceDetected(true);
@@ -69,52 +80,133 @@ export default function LoginPage() {
     setCameraActive(false);
   };
 
-  const captureAndCompare = async () => {
+  const captureToCanvas = useCallback(() => {
     if (canvasRef.current && videoRef.current && cameraActive) {
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, 320, 240);
       }
+    } else {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#e8b89a';
+          ctx.fillRect(0, 0, 320, 240);
+          ctx.fillStyle = '#d4a574';
+          ctx.fillRect(80, 50, 160, 140);
+          ctx.fillStyle = '#f5d0b0';
+          ctx.fillRect(110, 80, 100, 80);
+        }
+      }
     }
+  }, [cameraActive]);
 
+  const doRegister = async () => {
+    setScanStep('registering');
+    setRegisterSamples(0);
+    const target = videoRef.current || canvasRef.current;
+    if (!target) {
+      setScanStep('camera');
+      return;
+    }
+    for (let i = 0; i < 5; i++) {
+      captureToCanvas();
+      await new Promise((r) => setTimeout(r, 200));
+      setRegisterSamples(i + 1);
+    }
+    const user = roleUsers[selectedRole].find((u) => u.id === selectedUserId)!;
+    const finalSrc = (videoRef.current && cameraActive ? videoRef.current : canvasRef.current)!;
+    registerFace(selectedUserId, user.name, selectedRole, finalSrc);
+    setNeedsRegister(false);
+    await new Promise((r) => setTimeout(r, 400));
+    setScanStep('camera');
+  };
+
+  const captureAndCompare = async () => {
     setScanStep('capturing');
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 600));
+    captureToCanvas();
     setScanStep('comparing');
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 400));
+    const finalSrc = (videoRef.current && cameraActive ? videoRef.current : canvasRef.current)!;
+    const result = verifyFace(finalSrc, selectedUserId);
+    setVerifyResult(result);
 
     const selectedUser = roleUsers[selectedRole].find((u) => u.id === selectedUserId);
-    const success = await login(selectedRole, selectedUser?.name || '');
 
-    if (success) {
-      setScanStep('success');
-      stopCamera();
-      await new Promise((r) => setTimeout(r, 800));
-      navigate('/');
+    if (result.success && result.matchedUser) {
+      const ok = await login(selectedRole, selectedUser?.name || result.matchedUser);
+      if (ok) {
+        setScanStep('success');
+        stopCamera();
+        await new Promise((r) => setTimeout(r, 800));
+        navigate('/');
+      } else {
+        setScanStep('failed');
+        setErrorMsg('登录服务异常');
+        setTimeout(() => {
+          setScanStep('camera');
+          setErrorMsg('');
+        }, 2000);
+      }
     } else {
       setScanStep('failed');
-      setErrorMsg('人脸识别失败，请重试');
+      setErrorMsg(
+        result.similarity < 0
+          ? '未检测到有效人脸特征，请正对摄像头重试'
+          : `人脸识别失败（相似度${(result.similarity * 100).toFixed(1)}%，需${78}%）`
+      );
       setTimeout(() => {
         setScanStep('camera');
         setErrorMsg('');
-      }, 2000);
+        setVerifyResult(null);
+      }, 2500);
     }
   };
 
   const handleStart = () => {
     setScanning(true);
+    setVerifyResult(null);
     startCamera();
+  };
+
+  const handlePrimaryAction = () => {
+    if (needsRegister) {
+      doRegister();
+    } else {
+      captureAndCompare();
+    }
   };
 
   const stepInfo = {
     idle: { icon: Camera, text: '点击开始人脸识别', sub: 'SYSTEM READY' },
-    camera: { icon: Camera, text: faceDetected ? '人脸已检测，请确认' : '正在检测人脸...', sub: cameraActive ? 'CAMERA ACTIVE' : 'CAMERA SIMULATED' },
-    capturing: { icon: Fingerprint, text: '正在采集人脸特征...', sub: 'CAPTURING BIOMETRICS' },
-    comparing: { icon: Loader2, text: '正在与数据库比对...', sub: 'VERIFYING IDENTITY' },
+    camera: {
+      icon: Camera,
+      text: faceDetected
+        ? needsRegister
+          ? '人脸已定位，首次使用请注册'
+          : '人脸已定位，点击进行识别'
+        : '正在检测人脸...',
+      sub: cameraActive ? 'CAMERA ACTIVE' : 'CAMERA OFFLINE · FALLBACK',
+    },
+    registering: {
+      icon: UserPlus,
+      text: `正在注册人脸特征... (${registerSamples}/5)`,
+      sub: 'ENROLLING BIOMETRICS',
+    },
+    capturing: { icon: ScanLine, text: '正在采集人脸特征...', sub: 'CAPTURING FACEPRINT' },
+    comparing: { icon: Loader2, text: '特征比对中...', sub: 'VERIFYING IDENTITY' },
     success: { icon: CheckCircle2, text: '识别成功！正在进入系统...', sub: 'ACCESS GRANTED' },
     failed: { icon: XCircle, text: '识别失败', sub: 'ACCESS DENIED' },
   }[scanStep];
 
   const StepIcon = stepInfo.icon;
+  const canAct =
+    (scanStep === 'camera' && faceDetected) ||
+    (scanStep === 'registering' && needsRegister) ||
+    (scanStep === 'capturing') ||
+    (scanStep === 'comparing');
 
   return (
     <div className="w-full h-full flex items-center justify-center grid-bg relative overflow-hidden">
@@ -169,11 +261,18 @@ export default function LoginPage() {
 
                   <canvas ref={canvasRef} className="hidden" width={320} height={240} />
 
-                  {(scanStep === 'camera' || scanStep === 'capturing' || scanStep === 'comparing') && (
+                  {['camera', 'registering', 'capturing', 'comparing'].includes(scanStep) && (
                     <div
                       className="absolute left-2 right-2 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
                       style={{
-                        top: scanStep === 'camera' ? '20%' : scanStep === 'capturing' ? '50%' : '80%',
+                        top:
+                          scanStep === 'camera'
+                            ? '20%'
+                            : scanStep === 'registering'
+                            ? `${25 + registerSamples * 10}%`
+                            : scanStep === 'capturing'
+                            ? '55%'
+                            : '80%',
                         boxShadow: '0 0 15px #00d4ff, 0 0 30px #00d4ff',
                         transition: 'top 0.3s ease',
                       }}
@@ -188,12 +287,12 @@ export default function LoginPage() {
                   )}
 
                   {scanning && (
-                    <div className="relative z-10 flex flex-col items-center">
+                    <div className="relative z-10 flex flex-col items-center px-4 text-center">
                       <StepIcon
                         className={cn(
                           'w-14 h-14',
                           scanStep === 'success' ? 'text-emerald-400' : scanStep === 'failed' ? 'text-red-400' : 'text-cyan-300',
-                          (scanStep === 'comparing' || scanStep === 'capturing') && 'animate-spin'
+                          ['comparing', 'capturing', 'registering'].includes(scanStep) && 'animate-spin'
                         )}
                       />
                       <div className={cn(
@@ -202,6 +301,16 @@ export default function LoginPage() {
                       )}>
                         {stepInfo.text}
                       </div>
+                      {verifyResult && scanStep === 'failed' && (
+                        <div className="mt-1 text-[10px] text-red-400 font-orbitron">
+                          相似度: {(verifyResult.similarity * 100).toFixed(1)}%
+                        </div>
+                      )}
+                      {verifyResult && scanStep === 'success' && (
+                        <div className="mt-1 text-[10px] text-emerald-400 font-orbitron">
+                          相似度: {(verifyResult.similarity * 100).toFixed(1)}%
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -219,7 +328,7 @@ export default function LoginPage() {
               <div className="mt-5 text-center">
                 <div className="text-[11px] font-orbitron text-slate-500 tracking-wider">{stepInfo.sub}</div>
                 <div className="text-[10px] text-emerald-400/70 mt-1 font-orbitron flex items-center justify-center gap-1">
-                  <Shield className="w-3 h-3" /> 加密通道已建立 · TLS 1.3
+                  <Shield className="w-3 h-3" /> 加密通道已建立 · 特征本地存储
                 </div>
               </div>
 
@@ -287,20 +396,30 @@ export default function LoginPage() {
               </div>
 
               <div className="mb-4">
-                <label className="text-[11px] font-orbitron text-slate-400 mb-1.5 block tracking-wider">选择人员</label>
+                <label className="text-[11px] font-orbitron text-slate-400 mb-1.5 block tracking-wider flex items-center gap-1.5">
+                  选择人员
+                  {needsRegister && scanning && scanStep === 'camera' && (
+                    <span className="ml-auto text-orange-400 text-[9px] px-1.5 py-0.5 rounded bg-orange-500/20 border border-orange-500/50">
+                      ⚠ 需先注册人脸
+                    </span>
+                  )}
+                </label>
                 <div className="flex gap-2">
                   {roleUsers[selectedRole].map((u) => (
                     <button
                       key={u.id}
                       onClick={() => setSelectedUserId(u.id)}
                       className={cn(
-                        'flex-1 px-3 py-2 rounded text-sm font-medium transition-all border',
+                        'flex-1 px-3 py-2 rounded text-sm font-medium transition-all border relative',
                         selectedUserId === u.id
                           ? 'bg-cyan-600/30 border-cyan-400/60 text-cyan-200'
                           : 'bg-slate-900/40 border-slate-700 text-slate-300 hover:border-slate-500'
                       )}
                     >
                       {u.name}
+                      {!hasRegisteredFace(u.id) && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-orange-400" title="未注册人脸" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -314,17 +433,45 @@ export default function LoginPage() {
                   <Fingerprint className="w-5 h-5" />
                   启动人脸识别登录
                 </button>
-              ) : scanStep === 'camera' && faceDetected ? (
+              ) : canAct && scanStep === 'camera' ? (
                 <div className="space-y-2">
                   <button
-                    onClick={captureAndCompare}
-                    className="btn-glow w-full py-3 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-400/60 text-white font-orbitron text-sm tracking-wider flex items-center justify-center gap-2 hover:from-emerald-500 hover:to-teal-500 shadow-glow-green"
+                    onClick={handlePrimaryAction}
+                    className={cn(
+                      'btn-glow w-full py-3 rounded-lg border text-white font-orbitron text-sm tracking-wider flex items-center justify-center gap-2',
+                      needsRegister
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-600 border-orange-400/60 hover:from-orange-500 hover:to-amber-500'
+                        : 'bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-400/60 hover:from-emerald-500 hover:to-teal-500 shadow-glow-green'
+                    )}
                   >
-                    <CheckCircle2 className="w-5 h-5" />
-                    确认并进行识别比对
+                    {needsRegister ? (
+                      <>
+                        <UserPlus className="w-5 h-5" />
+                        注册该人员人脸特征
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5" />
+                        确认并进行识别比对
+                      </>
+                    )}
                   </button>
+                  {!needsRegister && (
+                    <button
+                      onClick={doRegister}
+                      className="w-full py-2 rounded-lg border border-slate-600 text-slate-300 font-orbitron text-[10px] hover:bg-slate-800/60"
+                    >
+                      (重新)注册当前人员人脸
+                    </button>
+                  )}
                   <button
-                    onClick={() => { stopCamera(); setScanning(false); setScanStep('idle'); setFaceDetected(false); }}
+                    onClick={() => {
+                      stopCamera();
+                      setScanning(false);
+                      setScanStep('idle');
+                      setFaceDetected(false);
+                      setVerifyResult(null);
+                    }}
                     className="w-full py-2 rounded-lg border border-slate-600 text-slate-300 font-orbitron text-xs hover:bg-slate-800/60"
                   >
                     取消
@@ -336,12 +483,12 @@ export default function LoginPage() {
                   className="w-full py-3 rounded-lg bg-slate-800/60 border border-slate-600 text-slate-400 font-orbitron text-sm tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
                 >
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  识别中...
+                  {scanStep === 'registering' ? '注册中...' : '识别中...'}
                 </button>
               )}
 
               <p className="text-center text-[10px] text-slate-500 mt-3 font-orbitron tracking-wider">
-                登录操作将被安全审计记录并写入系统日志
+                登录操作将被安全审计记录并写入系统日志 · 人脸特征加密存储于本地
               </p>
             </div>
           </div>

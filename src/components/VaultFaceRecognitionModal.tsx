@@ -3,6 +3,8 @@ import { X, Camera, CheckCircle2, XCircle, Loader2, Shield, AlertTriangle, Finge
 import { useUserStore } from '@/store/useUserStore';
 import type { UserRole } from '@/types';
 import { cn } from '@/utils';
+import { verifyFace } from '@/utils/faceAuth';
+import type { VerifyResult } from '@/utils/faceAuth';
 
 interface Props {
   open: boolean;
@@ -17,7 +19,9 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
   const [cameraActive, setCameraActive] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
@@ -25,6 +29,7 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
       setPhase('idle');
       setErrorMsg('');
       setFaceDetected(false);
+      setVerifyResult(null);
       startCamera();
     }
     return () => stopCamera();
@@ -43,12 +48,12 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
       }
       setCameraActive(true);
       setPhase('camera');
-      setTimeout(() => setFaceDetected(true), 1000);
+      setTimeout(() => setFaceDetected(true), 1200);
     } catch (err) {
       console.warn('金库摄像头启动失败:', err);
       setCameraActive(false);
       setPhase('camera');
-      setTimeout(() => setFaceDetected(true), 1200);
+      setTimeout(() => setFaceDetected(true), 1500);
     }
   };
 
@@ -64,33 +69,70 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
 
   const handleVerify = async () => {
     setPhase('detecting');
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 700));
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx && videoRef.current && cameraActive) {
+        ctx.drawImage(videoRef.current, 0, 0, 320, 240);
+      } else if (ctx) {
+        ctx.fillStyle = '#e8b89a';
+        ctx.fillRect(0, 0, 320, 240);
+        ctx.fillStyle = '#d4a574';
+        ctx.fillRect(80, 50, 160, 140);
+        ctx.fillStyle = '#f5d0b0';
+        ctx.fillRect(110, 80, 100, 80);
+      }
+    }
+
     setPhase('comparing');
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 600));
+
+    const src = videoRef.current && cameraActive ? (videoRef.current as unknown as HTMLCanvasElement) : (canvasRef.current as unknown as HTMLCanvasElement);
+    const result = verifyFace(src);
+    setVerifyResult(result);
 
     if (!currentUser) {
       setPhase('failed');
       setErrorMsg('未检测到登录用户');
-      setTimeout(() => { onUnauthorized('未知人员'); onClose(); }, 2000);
+      setTimeout(() => {
+        onUnauthorized('未知人员');
+        onClose();
+      }, 2000);
       return;
     }
 
     if (!allowedRoles.includes(currentUser.role)) {
       setPhase('failed');
       setErrorMsg(`当前角色(${currentUser.role})无金库访问权限`);
-      setTimeout(() => { onUnauthorized(currentUser.name); onClose(); }, 2000);
+      setTimeout(() => {
+        onUnauthorized(currentUser.name);
+        onClose();
+      }, 2000);
       return;
     }
 
-    const randomPass = Math.random() > 0.15;
-    if (randomPass) {
+    if (result.success && result.matchedRole && allowedRoles.includes(result.matchedRole as UserRole)) {
       setPhase('success');
       stopCamera();
-      setTimeout(() => { onSuccess(); onClose(); }, 800);
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 800);
     } else {
       setPhase('failed');
-      setErrorMsg('人脸特征与数据库不匹配');
-      setTimeout(() => { onUnauthorized(currentUser.name); onClose(); }, 2000);
+      if (result.similarity < 0) {
+        setErrorMsg('未检测到有效人脸特征');
+      } else if (!result.success) {
+        setErrorMsg(`人脸特征不匹配（相似度${(result.similarity * 100).toFixed(1)}%）`);
+      } else {
+        setErrorMsg(`该人员(${result.matchedUser || '未知'})未被授权进入金库`);
+      }
+      setTimeout(() => {
+        onUnauthorized(result.matchedUser || currentUser.name);
+        onClose();
+      }, 2200);
     }
   };
 
@@ -98,7 +140,7 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
 
   const phaseInfo = {
     idle: { text: '请正对摄像头...', sub: 'VAULT BIOMETRIC READY' },
-    camera: { text: faceDetected ? '人脸已定位，点击开始识别' : '正在检测人脸...', sub: cameraActive ? 'CAMERA ACTIVE' : 'SIMULATION MODE' },
+    camera: { text: faceDetected ? '人脸已定位，点击开始识别' : '正在检测人脸...', sub: cameraActive ? 'CAMERA ACTIVE' : 'FALLBACK MODE' },
     detecting: { text: '正在采集面部特征...', sub: 'EXTRACTING BIOMETRICS' },
     comparing: { text: '正在比对金库授权名单...', sub: 'VERIFYING ACCESS CONTROL' },
     success: { text: '身份验证通过，金库解锁中...', sub: 'ACCESS GRANTED' },
@@ -119,7 +161,10 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
             <h2 className="font-orbitron text-lg text-red-300 tracking-wider">金库安全认证</h2>
           </div>
           <button
-            onClick={() => { stopCamera(); onClose(); }}
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
             className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200"
           >
             <X className="w-4 h-4" />
@@ -128,6 +173,10 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
 
         <p className="text-xs text-slate-400 mb-4 leading-relaxed">
           金库为一级安防区域，仅授权人员(主管/运营部)可进入。所有访问记录将实时上传审计中心，失败尝试将触发安保警报。
+          <br />
+          <span className="text-[10px] text-cyan-500/80">
+            当前登录: {currentUser?.name || '未登录'} ({currentUser?.role || '无角色'})
+          </span>
         </p>
 
         <div className="relative aspect-[4/3] rounded-lg border-2 border-red-500/30 bg-slate-950 overflow-hidden mb-4">
@@ -135,20 +184,23 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" muted playsInline />
           )}
 
+          <canvas ref={canvasRef} className="hidden" width={320} height={240} />
+
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-52 rounded-[40%] border-2 border-red-400/40" />
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-48 rounded-[40%] border border-red-400/20" />
 
-            {(phase === 'detecting' || phase === 'comparing' || (phase === 'camera' && faceDetected)) && (
-              <div
-                className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-red-400 to-transparent"
-                style={{
-                  top: phase === 'camera' ? '30%' : phase === 'detecting' ? '50%' : phase === 'comparing' ? '70%' : '90%',
-                  boxShadow: '0 0 10px #ff3366',
-                  transition: 'top 0.4s ease',
-                }}
-              />
-            )}
+            {['detecting', 'comparing', (phase === 'camera' && faceDetected.toString()) as unknown as 'detecting'].filter(Boolean).length > 0 &&
+              (phase === 'detecting' || phase === 'comparing' || (phase === 'camera' && faceDetected)) && (
+                <div
+                  className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-red-400 to-transparent"
+                  style={{
+                    top: phase === 'camera' ? '30%' : phase === 'detecting' ? '50%' : '70%',
+                    boxShadow: '0 0 10px #ff3366',
+                    transition: 'top 0.4s ease',
+                  }}
+                />
+              )}
 
             {faceDetected && phase === 'camera' && (
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-52 rounded-[40%] border-2 border-emerald-400/80 animate-pulse" />
@@ -164,15 +216,20 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
           </div>
 
           <div className="absolute inset-0 flex flex-col items-center justify-end pb-3 bg-gradient-to-t from-black/70 to-transparent">
-            <div className={cn(
-              'font-orbitron text-sm font-bold tracking-wider',
-              phase === 'success' ? 'text-emerald-300' : phase === 'failed' ? 'text-red-300' : 'text-red-200'
-            )}>
+            <div
+              className={cn(
+                'font-orbitron text-sm font-bold tracking-wider',
+                phase === 'success' ? 'text-emerald-300' : phase === 'failed' ? 'text-red-300' : 'text-red-200'
+              )}
+            >
               {phaseInfo.text}
             </div>
-            {errorMsg && (
-              <div className="text-[11px] text-red-400 mt-1">{errorMsg}</div>
+            {verifyResult && (phase === 'success' || phase === 'failed') && (
+              <div className={cn('text-[11px] mt-1 font-orbitron', phase === 'success' ? 'text-emerald-400' : 'text-red-400')}>
+                特征相似度: {(verifyResult.similarity * 100).toFixed(1)}%
+              </div>
             )}
+            {errorMsg && <div className="text-[11px] text-red-400 mt-1">{errorMsg}</div>}
           </div>
         </div>
 
@@ -205,7 +262,10 @@ export default function VaultFaceRecognitionModal({ open, onClose, onSuccess, on
             </button>
           )}
           <button
-            onClick={() => { stopCamera(); onClose(); }}
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
             className="px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 font-orbitron text-xs hover:bg-slate-800/60"
           >
             取消
